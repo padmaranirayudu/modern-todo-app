@@ -1,7 +1,13 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash, Edit, Check, X, Sun, Moon, Calendar, Flag, AlertCircle, CheckCircle, Clock, Download, Upload, Filter, Smartphone, Share2 } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Trash, Edit, Check, X, Sun, Moon, Calendar, Flag, AlertCircle, CheckCircle, Clock, Download, Upload, Filter } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, isToday, isPast, isThisWeek } from 'date-fns'
 
@@ -14,7 +20,6 @@ interface Task {
   dueDate: string | null
   completed: boolean
   createdAt: string
-  updatedAt: string
   order: number
 }
 
@@ -22,11 +27,6 @@ interface Category {
   id: string
   name: string
   color: string
-}
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
 const defaultCategories: Category[] = [
@@ -38,21 +38,6 @@ const defaultCategories: Category[] = [
 ]
 
 export default function ModernTodoApp() {
-  // Register service worker for PWA
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch((error) => {
-        console.log('Service Worker registration failed:', error)
-      })
-    }
-  }, [])
-
-  // PWA Install state
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false)
-  const [isInstalled, setIsInstalled] = useState(false)
- 
-  // All state variables
   const [tasks, setTasks] = useState<Task[]>([])
   const [categories, setCategories] = useState<Category[]>(defaultCategories)
   const [darkMode, setDarkMode] = useState(false)
@@ -62,9 +47,7 @@ export default function ModernTodoApp() {
   const [selectedFilter, setSelectedFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<string>('order')
   const [draggedTask, setDraggedTask] = useState<string | null>(null)
-  const [deviceId, setDeviceId] = useState<string>('')
-  const [showShareInfo, setShowShareInfo] = useState(false)
-  
+
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -72,60 +55,15 @@ export default function ModernTodoApp() {
     priority: 'medium' as 'high' | 'medium' | 'low',
     dueDate: ''
   })
-  
 
-  // Handle PWA install prompt
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e as BeforeInstallPromptEvent)
-      setShowInstallPrompt(true)
-    }
-
-    const handleAppInstalled = () => {
-      setIsInstalled(true)
-      setShowInstallPrompt(false)
-      setDeferredPrompt(null)
-    }
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    window.addEventListener('appinstalled', handleAppInstalled)
-
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true)
-    }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-      window.removeEventListener('appinstalled', handleAppInstalled)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch((error) => {
+        console.log('Service Worker registration failed:', error)
+      })
     }
   }, [])
 
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return
-
-    deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
-    
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt')
-    }
-    
-    setDeferredPrompt(null)
-    setShowInstallPrompt(false)
-  }
-
-  // Generate unique device ID
-  useEffect(() => {
-    let id = localStorage.getItem('deviceId')
-    if (!id) {
-      id = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      localStorage.setItem('deviceId', id)
-    }
-    setDeviceId(id)
-  }, [])
-
-  // Load data from localStorage
   useEffect(() => {
     const savedTasks = localStorage.getItem('tasks')
     const savedCategories = localStorage.getItem('categories')
@@ -142,7 +80,6 @@ export default function ModernTodoApp() {
     }
   }, [])
 
-  // Save data to localStorage
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks))
   }, [tasks])
@@ -159,7 +96,7 @@ export default function ModernTodoApp() {
     if (!newTask.title.trim()) return
 
     const task: Task = {
-      id: `${deviceId}-${Date.now()}`,
+      id: Date.now().toString(),
       title: newTask.title,
       description: newTask.description,
       category: newTask.category,
@@ -167,7 +104,6 @@ export default function ModernTodoApp() {
       dueDate: newTask.dueDate || null,
       completed: false,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       order: tasks.length
     }
 
@@ -188,23 +124,23 @@ export default function ModernTodoApp() {
 
   const toggleComplete = (id: string) => {
     setTasks(tasks.map(task =>
-      task.id === id ? { ...task, completed: !task.completed, updatedAt: new Date().toISOString() } : task
+      task.id === id ? { ...task, completed: !task.completed } : task
     ))
   }
 
   const updateTask = (id: string, updates: Partial<Task>) => {
     setTasks(tasks.map(task =>
-      task.id === id ? { ...task, ...updates, updatedAt: new Date().toISOString() } : task
+      task.id === id ? { ...task, ...updates } : task
     ))
     setEditingTaskId(null)
   }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-500 border-red-500 bg-red-50 dark:bg-red-900/20'
-      case 'medium': return 'text-yellow-500 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
-      case 'low': return 'text-green-500 border-green-500 bg-green-50 dark:bg-green-900/20'
-      default: return 'text-gray-500 border-gray-500 bg-gray-50 dark:bg-gray-900/20'
+      case 'high': return 'text-red-500 border-red-500'
+      case 'medium': return 'text-yellow-500 border-yellow-500'
+      case 'low': return 'text-green-500 border-green-500'
+      default: return 'text-gray-500 border-gray-500'
     }
   }
 
@@ -296,7 +232,6 @@ export default function ModernTodoApp() {
 
     newTasks.forEach((task, index) => {
       task.order = index
-      task.updatedAt = new Date().toISOString()
     })
 
     setTasks(newTasks)
@@ -307,17 +242,12 @@ export default function ModernTodoApp() {
   }
 
   const exportTasks = () => {
-    const dataStr = JSON.stringify({ 
-      tasks, 
-      categories, 
-      exportDate: new Date().toISOString(),
-      deviceId 
-    }, null, 2)
+    const dataStr = JSON.stringify({ tasks, categories }, null, 2)
     const dataBlob = new Blob([dataStr], { type: 'application/json' })
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `todo-backup-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.json`
+    link.download = `todo-backup-${format(new Date(), 'yyyy-MM-dd')}.json`
     link.click()
   }
 
@@ -329,52 +259,13 @@ export default function ModernTodoApp() {
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string)
-        if (data.tasks) {
-          // Merge imported tasks with existing tasks
-          const existingTaskIds = new Set(tasks.map(t => t.id))
-          const newTasks = data.tasks.filter((t: Task) => !existingTaskIds.has(t.id))
-          const mergedTasks = [...tasks, ...newTasks]
-          setTasks(mergedTasks)
-        }
-        if (data.categories) {
-          const existingCategoryIds = new Set(categories.map(c => c.id))
-          const newCategories = data.categories.filter((c: Category) => !existingCategoryIds.has(c.id))
-          const mergedCategories = [...categories, ...newCategories]
-          setCategories(mergedCategories)
-        }
-        alert('Data imported successfully!')
+        if (data.tasks) setTasks(data.tasks)
+        if (data.categories) setCategories(data.categories)
       } catch (error) {
         alert('Invalid file format')
       }
     }
     reader.readAsText(file)
-  }
-
-  const shareViaFile = async () => {
-    const dataStr = JSON.stringify({ 
-      tasks, 
-      categories, 
-      exportDate: new Date().toISOString(),
-      deviceId 
-    }, null, 2)
-    
-    if (navigator.share) {
-      try {
-        const blob = new Blob([dataStr], { type: 'application/json' })
-        const file = new File([blob], `todo-${format(new Date(), 'yyyy-MM-dd')}.json`, { type: 'application/json' })
-        
-        await navigator.share({
-          title: 'Todo App Data',
-          text: 'Share todo list with family',
-          files: [file]
-        })
-      } catch (error) {
-        console.log('Share failed:', error)
-        exportTasks()
-      }
-    } else {
-      exportTasks()
-    }
   }
 
   const filteredTasks = getFilteredTasks()
@@ -385,76 +276,25 @@ export default function ModernTodoApp() {
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
-      {/* Install Prompt Banner */}
-      <AnimatePresence>
-        {showInstallPrompt && !isInstalled && (
-          <motion.div
-            initial={{ y: -100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -100, opacity: 0 }}
-            className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white p-4 shadow-lg"
-          >
-            <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Smartphone className="h-6 w-6 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Install Modern Todo App</p>
-                  <p className="text-sm text-blue-100">Add to your home screen for the best experience!</p>
-                </div>
-              </div>
-              <div className="flex gap-2 flex-shrink-0">
-                <button
-                  onClick={handleInstallClick}
-                  className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
-                >
-                  Install
-                </button>
-                <button
-                  onClick={() => setShowInstallPrompt(false)}
-                  className="text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Later
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className={`max-w-6xl mx-auto p-4 md:p-8 ${showInstallPrompt && !isInstalled ? 'pt-24' : ''}`}>
+      <div className="max-w-6xl mx-auto p-4 md:p-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Modern Todo
             </h1>
             <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              {isInstalled ? '📱 Installed App - 100% Offline' : 'Organize your tasks efficiently'}
+              Organize your tasks efficiently
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {!isInstalled && deferredPrompt && (
-              <button
-                onClick={handleInstallClick}
-                className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                title="Install App"
-              >
-                <Smartphone className="h-5 w-5" />
-              </button>
-            )}
-            <button
-              onClick={() => setShowShareInfo(!showShareInfo)}
-              className={`p-2 rounded-lg border transition-colors ${darkMode ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 hover:bg-gray-100'}`}
-              title="Share Data"
-            >
-              <Share2 className="h-5 w-5" />
-            </button>
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => document.getElementById('import-file')?.click()}
-              className={`p-2 rounded-lg border transition-colors ${darkMode ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 hover:bg-gray-100'}`}
-              title="Import Data"
+              className={darkMode ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : ''}
             >
-              <Upload className="h-5 w-5" />
-            </button>
+              <Upload className="h-4 w-4" />
+            </Button>
             <input
               id="import-file"
               type="file"
@@ -462,83 +302,27 @@ export default function ModernTodoApp() {
               onChange={importTasks}
               className="hidden"
             />
-            <button
-              onClick={shareViaFile}
-              className={`p-2 rounded-lg border transition-colors ${darkMode ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 hover:bg-gray-100'}`}
-              title="Export/Share Data"
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={exportTasks}
+              className={darkMode ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : ''}
             >
-              <Download className="h-5 w-5" />
-            </button>
-            <button
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-lg border transition-colors ${darkMode ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 hover:bg-gray-100'}`}
+              className={darkMode ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : ''}
             >
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
+              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
 
-        {showShareInfo && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className={`rounded-lg shadow-sm mb-6 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}
-          >
-            <div className="p-6">
-              <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                📤 Share Data with Family
-              </h3>
-              <div className="space-y-4">
-                <div className={`p-4 rounded-lg ${darkMode ? 'bg-blue-900/20 border border-blue-700' : 'bg-blue-50 border border-blue-200'}`}>
-                  <h4 className={`font-semibold mb-2 ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
-                    How to Share:
-                  </h4>
-                  <ol className={`space-y-2 text-sm ${darkMode ? 'text-blue-200' : 'text-blue-800'}`}>
-                    <li>1. Click the <Download className="inline h-4 w-4" /> Export button</li>
-                    <li>2. Share the JSON file via:</li>
-                    <ul className="ml-6 space-y-1">
-                      <li>• WhatsApp</li>
-                      <li>• Bluetooth</li>
-                      <li>• Email</li>
-                      <li>• AirDrop (iPhone)</li>
-                      <li>• Any file sharing method</li>
-                    </ul>
-                    <li>3. Other person clicks <Upload className="inline h-4 w-4" /> Import</li>
-                    <li>4. Select the received file</li>
-                    <li>5. Done! Data is merged</li>
-                  </ol>
-                </div>
-
-                <div className={`p-4 rounded-lg ${darkMode ? 'bg-green-900/20 border border-green-700' : 'bg-green-50 border border-green-200'}`}>
-                  <h4 className={`font-semibold mb-2 ${darkMode ? 'text-green-300' : 'text-green-900'}`}>
-                    ✅ Benefits:
-                  </h4>
-                  <ul className={`space-y-1 text-sm ${darkMode ? 'text-green-200' : 'text-green-800'}`}>
-                    <li>• No server needed</li>
-                    <li>• No WiFi required</li>
-                    <li>• No internet needed</li>
-                    <li>• Share anytime, anywhere</li>
-                    <li>• Complete privacy</li>
-                    <li>• Works offline</li>
-                  </ul>
-                </div>
-
-                <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <strong>Your Device ID:</strong> {deviceId}
-                  </p>
-                  <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Each device has a unique ID to prevent conflicts
-                  </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        <div className={`rounded-lg shadow-sm mb-6 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-          <div className="p-6">
+        <Card className={`mb-6 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
+          <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -587,17 +371,17 @@ export default function ModernTodoApp() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         <div className="mb-6">
-          <button
+          <Button
             onClick={() => setIsAddingTask(!isAddingTask)}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4 mr-2" />
             Add New Task
-          </button>
+          </Button>
         </div>
 
         <AnimatePresence>
@@ -607,234 +391,198 @@ export default function ModernTodoApp() {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
             >
-              <div className={`rounded-lg shadow-sm mb-6 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-                <div className="p-6">
-                  <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              <Card className={`mb-6 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
+                <CardHeader>
+                  <CardTitle className={darkMode ? 'text-white' : 'text-gray-900'}>
                     Create New Task
-                  </h3>
-                  <div className="space-y-4">
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="title" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      Task Title
+                    </Label>
+                    <Input
+                      id="title"
+                      value={newTask.title}
+                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                      placeholder="Enter task title..."
+                      className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="description" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                      Description
+                    </Label>
+                    <Textarea
+                      id="description"
+                      value={newTask.description}
+                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                      placeholder="Add details..."
+                      className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Task Title
-                      </label>
-                      <input
-                        type="text"
-                        value={newTask.title}
-                        onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                        placeholder="Enter task title..."
-                        className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300'}`}
-                      />
-                    </div>
-                    <div>
-                      <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Description
-                      </label>
-                      <textarea
-                        value={newTask.description}
-                        onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                        placeholder="Add details..."
-                        rows={3}
-                        className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300'}`}
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Category
-                        </label>
-                        <select
-                          value={newTask.category}
-                          onChange={(e) => setNewTask({ ...newTask, category: e.target.value })}
-                          className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                        >
+                      <Label htmlFor="category" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                        Category
+                      </Label>
+                      <Select value={newTask.category} onValueChange={(value) => setNewTask({ ...newTask, category: value })}>
+                        <SelectTrigger className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600' : ''}>
                           {categories.map(cat => (
-                            <option key={cat.id} value={cat.id}>
+                            <SelectItem key={cat.id} value={cat.id} className={darkMode ? 'text-white' : ''}>
                               {cat.name}
-                            </option>
+                            </SelectItem>
                           ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Priority
-                        </label>
-                        <select
-                          value={newTask.priority}
-                          onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as 'high' | 'medium' | 'low' })}
-                          className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                        >
-                          <option value="high">High</option>
-                          <option value="medium">Medium</option>
-                          <option value="low">Low</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Due Date
-                        </label>
-                        <input
-                          type="date"
-                          value={newTask.dueDate}
-                          onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                          className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                        />
-                      </div>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={addTask}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Check className="h-4 w-4" />
-                        Add Task
-                      </button>
-                      <button
-                        onClick={() => setIsAddingTask(false)}
-                        className={`px-4 py-2 rounded-lg border transition-colors flex items-center gap-2 ${darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-100'}`}
-                      >
-                        <X className="h-4 w-4" />
-                        Cancel
-                      </button>
+                    <div>
+                      <Label htmlFor="priority" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                        Priority
+                      </Label>
+                      <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
+                        <SelectTrigger className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600' : ''}>
+                          <SelectItem value="high" className={darkMode ? 'text-white' : ''}>High</SelectItem>
+                          <SelectItem value="medium" className={darkMode ? 'text-white' : ''}>Medium</SelectItem>
+                          <SelectItem value="low" className={darkMode ? 'text-white' : ''}>Low</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="dueDate" className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                        Due Date
+                      </Label>
+                      <Input
+                        id="dueDate"
+                        type="date"
+                        value={newTask.dueDate}
+                        onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                        className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}
+                      />
                     </div>
                   </div>
-                </div>
-              </div>
+                  <div className="flex gap-2">
+                    <Button onClick={addTask} className="flex-1 bg-green-600 hover:bg-green-700 text-white">
+                      <Check className="h-4 w-4 mr-2" />
+                      Add Task
+                    </Button>
+                    <Button onClick={() => setIsAddingTask(false)} variant="outline" className={darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
           )}
         </AnimatePresence>
 
         <div className="mb-6 flex flex-wrap gap-2">
-          <button
+          <Button
+            variant={selectedCategory === 'all' ? 'default' : 'outline'}
             onClick={() => setSelectedCategory('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              selectedCategory === 'all'
-                ? 'bg-blue-600 text-white'
-                : darkMode
-                ? 'border border-gray-600 text-gray-300 hover:bg-gray-700'
-                : 'border border-gray-300 hover:bg-gray-100'
-            }`}
+            className={selectedCategory === 'all' ? 'bg-blue-600 text-white' : darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
           >
             All ({tasks.length})
-          </button>
+          </Button>
           {categories.map(cat => {
             const count = tasks.filter(t => t.category === cat.id).length
-            const catProgress = getCategoryProgress(cat.id)
+            const progress = getCategoryProgress(cat.id)
             return (
-              <button
+              <Button
                 key={cat.id}
+                variant={selectedCategory === cat.id ? 'default' : 'outline'}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedCategory === cat.id
-                    ? `${cat.color} text-white`
-                    : darkMode
-                    ? 'border border-gray-600 text-gray-300 hover:bg-gray-700'
-                    : 'border border-gray-300 hover:bg-gray-100'
-                }`}
+                className={selectedCategory === cat.id ? `${cat.color} text-white` : darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
               >
-                {cat.name} ({count}) {count > 0 && `- ${catProgress}%`}
-              </button>
+                {cat.name} ({count}) {count > 0 && `- ${progress}%`}
+              </Button>
             )
           })}
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2 items-center">
           <Filter className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
-          <button
+          <Button
+            variant={selectedFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
             onClick={() => setSelectedFilter('all')}
-            className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
-              selectedFilter === 'all'
-                ? 'bg-blue-600 text-white'
-                : darkMode
-                ? 'border border-gray-600 text-gray-300 hover:bg-gray-700'
-                : 'border border-gray-300 hover:bg-gray-100'
-            }`}
+            className={selectedFilter === 'all' ? 'bg-blue-600 text-white' : darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
           >
             All
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={selectedFilter === 'active' ? 'default' : 'outline'}
+            size="sm"
             onClick={() => setSelectedFilter('active')}
-            className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
-              selectedFilter === 'active'
-                ? 'bg-blue-600 text-white'
-                : darkMode
-                ? 'border border-gray-600 text-gray-300 hover:bg-gray-700'
-                : 'border border-gray-300 hover:bg-gray-100'
-            }`}
+            className={selectedFilter === 'active' ? 'bg-blue-600 text-white' : darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
           >
             Active ({activeCount})
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={selectedFilter === 'completed' ? 'default' : 'outline'}
+            size="sm"
             onClick={() => setSelectedFilter('completed')}
-            className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
-              selectedFilter === 'completed'
-                ? 'bg-blue-600 text-white'
-                : darkMode
-                ? 'border border-gray-600 text-gray-300 hover:bg-gray-700'
-                : 'border border-gray-300 hover:bg-gray-100'
-            }`}
+            className={selectedFilter === 'completed' ? 'bg-blue-600 text-white' : darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
           >
             Completed ({completedCount})
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={selectedFilter === 'today' ? 'default' : 'outline'}
+            size="sm"
             onClick={() => setSelectedFilter('today')}
-            className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
-              selectedFilter === 'today'
-                ? 'bg-blue-600 text-white'
-                : darkMode
-                ? 'border border-gray-600 text-gray-300 hover:bg-gray-700'
-                : 'border border-gray-300 hover:bg-gray-100'
-            }`}
+            className={selectedFilter === 'today' ? 'bg-blue-600 text-white' : darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
           >
             Today
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={selectedFilter === 'thisWeek' ? 'default' : 'outline'}
+            size="sm"
             onClick={() => setSelectedFilter('thisWeek')}
-            className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
-              selectedFilter === 'thisWeek'
-                ? 'bg-blue-600 text-white'
-                : darkMode
-                ? 'border border-gray-600 text-gray-300 hover:bg-gray-700'
-                : 'border border-gray-300 hover:bg-gray-100'
-            }`}
+            className={selectedFilter === 'thisWeek' ? 'bg-blue-600 text-white' : darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
           >
             This Week
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={selectedFilter === 'overdue' ? 'default' : 'outline'}
+            size="sm"
             onClick={() => setSelectedFilter('overdue')}
-            className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
-              selectedFilter === 'overdue'
-                ? 'bg-red-600 text-white'
-                : darkMode
-                ? 'border border-gray-600 text-gray-300 hover:bg-gray-700'
-                : 'border border-gray-300 hover:bg-gray-100'
-            }`}
+            className={selectedFilter === 'overdue' ? 'bg-red-600 text-white' : darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
           >
             Overdue ({overdueCount})
-          </button>
+          </Button>
           <div className="ml-auto">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className={`px-3 py-1 text-sm rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-            >
-              <option value="order">Manual Order</option>
-              <option value="priority">Priority</option>
-              <option value="dueDate">Due Date</option>
-            </select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className={`w-40 ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className={darkMode ? 'bg-gray-700 border-gray-600' : ''}>
+                <SelectItem value="order" className={darkMode ? 'text-white' : ''}>Manual Order</SelectItem>
+                <SelectItem value="priority" className={darkMode ? 'text-white' : ''}>Priority</SelectItem>
+                <SelectItem value="dueDate" className={darkMode ? 'text-white' : ''}>Due Date</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         <div className="space-y-3">
           <AnimatePresence>
             {filteredTasks.length === 0 ? (
-              <div className={`rounded-lg shadow-sm ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-                <div className="py-12 text-center">
+              <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
+                <CardContent className="py-12 text-center">
                   <CheckCircle className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
                   <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     No tasks found. Add a new task to get started!
                   </p>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ) : (
               filteredTasks.map((task) => (
                 <motion.div
@@ -849,35 +597,27 @@ export default function ModernTodoApp() {
                   onDragEnd={handleDragEnd}
                   className={`cursor-move ${draggedTask === task.id ? 'opacity-50' : ''}`}
                 >
-                  <div className={`rounded-lg shadow-sm ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'} ${task.completed ? 'opacity-60' : ''} border-l-4 ${getPriorityColor(task.priority).split(' ')[1]}`}>
-                    <div className="p-4">
+                  <Card className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'} ${task.completed ? 'opacity-60' : ''} border-l-4 ${getPriorityColor(task.priority).split(' ')[1]}`}>
+                    <CardContent className="p-4">
                       {editingTaskId === task.id ? (
                         <div className="space-y-3">
-                          <input
-                            type="text"
+                          <Input
                             value={task.title}
                             onChange={(e) => updateTask(task.id, { title: e.target.value })}
-                            className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                            className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}
                           />
-                          <textarea
+                          <Textarea
                             value={task.description}
                             onChange={(e) => updateTask(task.id, { description: e.target.value })}
-                            rows={2}
-                            className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                            className={darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}
                           />
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => setEditingTaskId(null)}
-                              className="bg-green-600 hover:bg-green-700 text-white p-2 rounded-lg transition-colors"
-                            >
+                            <Button onClick={() => setEditingTaskId(null)} size="sm" className="bg-green-600 hover:bg-green-700 text-white">
                               <Check className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => setEditingTaskId(null)}
-                              className={`p-2 rounded-lg border transition-colors ${darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-100'}`}
-                            >
+                            </Button>
+                            <Button onClick={() => setEditingTaskId(null)} variant="outline" size="sm" className={darkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}>
                               <X className="h-4 w-4" />
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       ) : (
@@ -900,18 +640,22 @@ export default function ModernTodoApp() {
                                 {task.title}
                               </h3>
                               <div className="flex items-center gap-1 flex-shrink-0">
-                                <button
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => setEditingTaskId(task.id)}
-                                  className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100'}`}
+                                  className={`h-8 w-8 ${darkMode ? 'hover:bg-gray-700 text-gray-400' : ''}`}
                                 >
                                   <Edit className="h-4 w-4" />
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => deleteTask(task.id)}
-                                  className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-gray-100 text-red-600'}`}
+                                  className={`h-8 w-8 ${darkMode ? 'hover:bg-gray-700 text-red-400' : 'text-red-600'}`}
                                 >
                                   <Trash className="h-4 w-4" />
-                                </button>
+                                </Button>
                               </div>
                             </div>
                             {task.description && (
@@ -944,8 +688,8 @@ export default function ModernTodoApp() {
                           </div>
                         </div>
                       )}
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 </motion.div>
               ))
             )}
@@ -958,8 +702,8 @@ export default function ModernTodoApp() {
             animate={{ opacity: 1, scale: 1 }}
             className="mt-8 text-center"
           >
-            <div className={`rounded-lg shadow-sm ${darkMode ? 'bg-gradient-to-r from-green-900/20 to-blue-900/20 border border-green-700' : 'bg-gradient-to-r from-green-50 to-blue-50 border border-green-200'}`}>
-              <div className="py-8">
+            <Card className={`${darkMode ? 'bg-gradient-to-r from-green-900/20 to-blue-900/20 border-green-700' : 'bg-gradient-to-r from-green-50 to-blue-50 border-green-200'}`}>
+              <CardContent className="py-8">
                 <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
                 <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                   Congratulations!
@@ -967,8 +711,8 @@ export default function ModernTodoApp() {
                 <p className={`${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   You have completed all your tasks. Great job!
                 </p>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </motion.div>
         )}
       </div>
