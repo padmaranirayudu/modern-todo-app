@@ -51,7 +51,20 @@ export default function ModernTodoApp() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
-
+ 
+  // All state variables
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [categories, setCategories] = useState<Category[]>(defaultCategories)
+  const [darkMode, setDarkMode] = useState(false)
+  const [isAddingTask, setIsAddingTask] = useState(false)
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [selectedFilter, setSelectedFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<string>('order')
+  const [draggedTask, setDraggedTask] = useState<string | null>(null)
+  const [deviceId, setDeviceId] = useState<string>('')
+  const [showShareInfo, setShowShareInfo] = useState(false)
+  
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -59,19 +72,7 @@ export default function ModernTodoApp() {
     priority: 'medium' as 'high' | 'medium' | 'low',
     dueDate: ''
   })
-
-  // Register Service Worker
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
-        .then((registration) => {
-          console.log('Service Worker registered:', registration)
-        })
-        .catch((error) => {
-          console.log('Service Worker registration failed:', error)
-        })
-    }
-  }, [])
+  
 
   // Handle PWA install prompt
   useEffect(() => {
